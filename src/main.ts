@@ -2,7 +2,7 @@ import * as w4 from "./wasm4";
 
 import { pdpmemory } from "./pdpmemory"
 
-var ac=0, io=0, pc=4, y, ib, ov=0; 
+var ac=0, io=0, pc=4, y=0, ib=0, ov=0; 
 var flag = [false, false, false, false, false, false, false];
 var sense = [false, false, false, false, false, false, false];
 var control=0;
@@ -16,34 +16,23 @@ var AND=0o01, IOR=0o02, XOR=0o03, XCT=0o04, CALJDA=0o07,
     JMP=0o30, JSP=0o31, SKP=0o32, SFT=0o33, LAW=0o34, IOT=0o35, OPR=0o37;
 
 
-function handleKeydown(e){
-	var c = e.keyCode;
-	c = String.fromCharCode(c);
-	if (c=='W') control |= 0o1;
-	if (c=='S') control |= 0o2;
-	if (c=='A') control |= 0o4;
-	if (c=='D') control |= 0o10;
-	if (c=='I')control |= 0o40000;
-	if (c=='K') control |= 0o100000;
-	if (c=='J') control |= 0o200000;
-	if (c=='L') control |= 0o400000;
-}
-
-function handleKeyup(e){
-	var c = e.keyCode;
-	c = String.fromCharCode(c);
-	if (c=='W') control &= ~0o1;
-	if (c=='S') control &= ~0o2;
-	if (c=='A') control &= ~0o4;
-	if (c=='D') control &= ~0o10;
-	if (c=='I')control &= ~0o40000;
-	if (c=='K') control &= ~0o100000;
-	if (c=='J') control &= ~0o200000;
-	if (c=='L') control &= ~0o400000;
+function checkInput(){
+    let c1 = load<u8>(w4.GAMEPAD1);
+    let c2 = load<u8>(w4.GAMEPAD2);
+    control = 0;
+	if (c1&w4.BUTTON_UP) control |= 0o1;
+	if (c1&w4.BUTTON_DOWN) control |= 0o2;
+	if (c1&w4.BUTTON_LEFT) control |= 0o4;
+	if (c1&w4.BUTTON_RIGHT) control |= 0o10;
+	if (c2&w4.BUTTON_UP)control |= 0o40000;
+	if (c2&w4.BUTTON_DOWN) control |= 0o100000;
+	if (c2&w4.BUTTON_LEFT) control |= 0o200000;
+	if (c2&w4.BUTTON_RIGHT) control |= 0o400000;
 }
 
 export function update(){
     memory.fill(w4.FRAMEBUFFER, 0 | (0 << 2) | (0 << 4) | (0 << 6), 160 * 160 / 4);
+    checkInput();
 	while(pc!=0o2051) step();
 	step();
 	while(pc!=0o2051) step();
@@ -54,7 +43,7 @@ function step(){
 	dispatch(pdpmemory[pc++]);
 }
 
-function dispatch(md) {
+function dispatch(md: number) {
 	y=md&0o7777; ib=(md>>12)&1;
 	switch(md>>13) {
 	case AND: ea(); ac&=pdpmemory[y]; break;
@@ -201,7 +190,7 @@ function dispatch(md) {
 		if((y&0o200)==0o200) ac=0;
 		if((y&0o4000)==0o4000) io=0;
 		if((y&0o1000)==0o1000) ac^=0o777777;
-		if((y&0o400)==0o400) panelrunpc = -1;
+		//if((y&0o400)==0o400) panelrunpc = -1;
 		var nflag=y&7; 
 		if (nflag<2) break;
 		var state=(y&0o10)==0o10;
