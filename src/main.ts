@@ -1,5 +1,7 @@
 import * as w4 from "./wasm4";
 
+import { pdpmemory } from "./pdpmemory"
+
 var ac=0, io=0, pc=4, y, ib, ov=0; 
 var flag = [false, false, false, false, false, false, false];
 var sense = [false, false, false, false, false, false, false];
@@ -41,7 +43,7 @@ function handleKeyup(e){
 }
 
 export function update(){
-	ctx.clearRect(0,0,550,550);
+    memory.fill(w4.FRAMEBUFFER, 0 | (0 << 2) | (0 << 4) | (0 << 6), 160 * 160 / 4);
 	while(pc!=0o2051) step();
 	step();
 	while(pc!=0o2051) step();
@@ -49,62 +51,62 @@ export function update(){
 }
 
 function step(){
-	dispatch(memory[pc++]);
+	dispatch(pdpmemory[pc++]);
 }
 
 function dispatch(md) {
 	y=md&0o7777; ib=(md>>12)&1;
 	switch(md>>13) {
-	case AND: ea(); ac&=memory[y]; break;
-	case IOR: ea(); ac|=memory[y]; break;
-	case XOR: ea(); ac^=memory[y]; break;
-	case XCT: ea(); dispatch(memory[y]); break;
+	case AND: ea(); ac&=pdpmemory[y]; break;
+	case IOR: ea(); ac|=pdpmemory[y]; break;
+	case XOR: ea(); ac^=pdpmemory[y]; break;
+	case XCT: ea(); dispatch(pdpmemory[y]); break;
 	case CALJDA: 
 		var target=(ib==0)?64:y;
-		memory[target]=ac;
+		pdpmemory[target]=ac;
 		ac=(ov<<17)+pc;
 		pc=target+1;
 		break;
-	case LAC: ea(); ac=memory[y]; break;
-	case LIO: ea(); io=memory[y]; break;
-	case DAC: ea(); memory[y]=ac; break;
-	case DAP: ea(); memory[y]=(memory[y]&0o770000)+(ac&0o7777); break;
-	case DIO: ea(); memory[y]=io; break;
-	case DZM: ea(); memory[y]=0; break;
+	case LAC: ea(); ac=pdpmemory[y]; break;
+	case LIO: ea(); io=pdpmemory[y]; break;
+	case DAC: ea(); pdpmemory[y]=ac; break;
+	case DAP: ea(); pdpmemory[y]=(pdpmemory[y]&0o770000)+(ac&0o7777); break;
+	case DIO: ea(); pdpmemory[y]=io; break;
+	case DZM: ea(); pdpmemory[y]=0; break;
 	case ADD:
 		ea();
-		ac=ac+memory[y];
+		ac=ac+pdpmemory[y];
 		ov=ac>>18;
 		ac=(ac+ov)&0o777777;
 		if (ac==0o777777) ac=0;
 		break;
 	case SUB:
 		ea();
-		var diffsigns=((ac>>17)^(memory[y]>>17))==1;
-		ac=ac+(memory[y]^0o777777);
+		var diffsigns=((ac>>17)^(pdpmemory[y]>>17))==1;
+		ac=ac+(pdpmemory[y]^0o777777);
 		ac=(ac+(ac>>18))&0o777777;
 		if (ac==0o777777) ac=0;
-		if (diffsigns&&(memory[y]>>17==ac>>17)) ov=1;
+		if (diffsigns&&(pdpmemory[y]>>17==ac>>17)) ov=1;
 		break;
 	case IDX:
 		ea(); 
-		ac=memory[y]+1; 
+		ac=pdpmemory[y]+1; 
 		if(ac==0o777777) ac=0;
-		memory[y]=ac;
+		pdpmemory[y]=ac;
 		break;
 	case ISP:
 		ea();
-		ac=memory[y]+1; 
+		ac=pdpmemory[y]+1; 
 		if(ac==0o777777) ac=0;
-		memory[y]=ac;
+		pdpmemory[y]=ac;
 		if((ac&0o400000)==0) pc++;
 		break;
-	case SAD: ea(); if(ac!=memory[y]) pc++; break;
-	case SAS: ea(); if(ac==memory[y]) pc++; break;
+	case SAD: ea(); if(ac!=pdpmemory[y]) pc++; break;
+	case SAS: ea(); if(ac==pdpmemory[y]) pc++; break;
 	case MUS:
 		ea();
 		if ((io&1)==1){
-			ac=ac+memory[y];
+			ac=ac+pdpmemory[y];
 			ac=(ac+(ac>>18))&0o777777;
 			if (ac==0o777777) ac=0;
 		}
@@ -117,10 +119,10 @@ function dispatch(md) {
 		ac=(ac<<1|io>>17)&0o777777;
 		io=((io<<1|acl)&0o777777)^1;
 		if ((io&1)==1){
-			ac=ac+(memory[y]^0o777777);
+			ac=ac+(pdpmemory[y]^0o777777);
 			ac=(ac+(ac>>18))&0o777777;}
 		else {
-			ac=ac+1+memory[y];
+			ac=ac+1+pdpmemory[y];
 			ac=(ac+(ac>>18))&0o777777;
 		}
 		if (ac==0o777777) ac=0;
@@ -217,8 +219,8 @@ function dispatch(md) {
 function ea() {
 	while(true){
 		if (ib==0) return;
-		ib=(memory[y]>>12)&1;
-		y=memory[y]&0o7777;
+		ib=(pdpmemory[y]>>12)&1;
+		y=pdpmemory[y]&0o7777;
 	}
 }
 
@@ -236,5 +238,5 @@ function os(n){
 }
     
 function regs(){
-	console.log('pc:', os(pc), 'mpc:', os(memory[pc]), 'ac:', os(ac), 'io;', os(io), 'ov:', ov);
+	console.log('pc:', os(pc), 'mpc:', os(pdpmemory[pc]), 'ac:', os(ac), 'io;', os(io), 'ov:', ov);
 }
